@@ -130,6 +130,23 @@ table.t tr.vf td:first-child{box-shadow:inset -4px 0 0 var(--blue)}
   #printArea .page{page-break-after:always;break-after:page}
 }
 #printArea{display:none}
+
+.ms{position:relative}
+.ms .msb{display:flex;align-items:center;gap:8px;min-width:190px;max-width:280px;cursor:pointer;text-align:right;justify-content:space-between}
+.ms .msb span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms .msb b{color:var(--muted);font-size:11px}
+.ms.on .msb{border-color:var(--blue);background:#EEF6FC;color:var(--navy);font-weight:700}
+.ms .msp{display:none}
+.ms.open .msp{display:flex;flex-direction:column;gap:8px;position:absolute;top:calc(100% + 4px);right:0;z-index:40;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(11,60,107,.18);padding:10px;width:min(380px,92vw);max-height:min(460px,70vh)}
+.msa{display:flex;gap:6px;flex-wrap:wrap}
+.msl{overflow:auto;flex:1;min-height:80px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 0}
+.msl label{display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13.5px;cursor:pointer;border-radius:6px}
+.msl label:hover{background:var(--soft)}
+.msl label span{flex:1}
+.msl label small{color:var(--muted);direction:ltr}
+.msf{display:flex;align-items:center;gap:6px}
+.msf .msc{flex:1;font-size:12.5px;color:var(--muted)}
+@media(max-width:700px){.ms .msb{min-width:0;max-width:none;width:100%}.ms.open .msp{position:fixed;top:auto;bottom:0;right:0;left:0;width:auto;max-height:75vh;border-radius:16px 16px 0 0}}
 </style>
 </head>
 <body>
@@ -154,9 +171,10 @@ table.t tr.vf td:first-child{box-shadow:inset -4px 0 0 var(--blue)}
   <div class="fld"><label>فترات جاهزة</label><div class="presets"><button class="btn sm" data-pre="pw">الأسبوع السابق</button><button class="btn sm" data-pre="m">آخر شهر</button><button class="btn sm" data-pre="pm">الشهر السابق</button><button class="btn sm" data-pre="3m">آخر 3 أشهر</button><button class="btn sm" data-pre="all">كل البيانات</button></div></div>
   <div class="fld"><label>المقارنة مع</label><select class="inp" id="fCmp"><option value="prev">الفترة السابقة</option><option value="custom">فترة مخصصة</option><option value="none">بدون مقارنة</option></select><small id="cmpInfo" style="color:var(--muted);font-size:11.5px"></small></div>
   <div class="fld" id="cmpBox" hidden><label>فترة المقارنة</label><div class="row" style="gap:4px"><input class="inp" type="date" id="fCf"><input class="inp" type="date" id="fCt"></div></div>
-  <div class="fld"><label>القطاع</label><select class="inp" id="fSec"></select></div>
-  <div class="fld"><label>المركز الصحي</label><select class="inp" id="fCen"></select></div>
-  <div class="fld"><label>التصنيف الرئيسي</label><select class="inp" id="fMain"></select></div>
+  <div class="fld"><label>القطاع</label><div class="ms" data-ms="sec"><button type="button" class="inp msb"><span></span><b>▾</b></button><div class="msp"></div></div></div>
+  <div class="fld"><label>المركز الصحي</label><div class="ms" data-ms="cen"><button type="button" class="inp msb"><span></span><b>▾</b></button><div class="msp"></div></div></div>
+  <div class="fld"><label>التصنيف الرئيسي</label><div class="ms" data-ms="main"><button type="button" class="inp msb"><span></span><b>▾</b></button><div class="msp"></div></div></div>
+  <div class="fld"><label>التصنيف الفرعي</label><div class="ms" data-ms="sub"><button type="button" class="inp msb"><span></span><b>▾</b></button><div class="msp"></div></div></div>
   <div class="fld"><label>حد باريتو %</label><input class="inp" type="number" min="50" max="95" step="5" id="fThr" style="width:72px"></div>
 </div></details>
 <main id="view"></main>
@@ -199,7 +217,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
 </script>
 <script>'use strict';
-const APP_VER='1';
+const APP_VER='2';
 /* ================= helpers ================= */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -237,8 +255,9 @@ const kvSet=(k,v)=>new Promise(res=>{ if(!IDB) return res(); const t=IDB.transac
 
 /* ================= state ================= */
 let DATA={recs:[],src:'',at:''};
-const DEF_F={from:'',to:'',cmp:'prev',cfrom:'',cto:'',sec:'',cen:'',main:'',thr:80};
-let F=LS.get('p8020-f-v1',DEF_F);
+const DEF_F={from:'',to:'',cmp:'prev',cfrom:'',cto:'',sec:null,cen:null,main:null,sub:null,thr:80};
+const MSK=['sec','cen','main','sub']; // null = الكل، [] = لا شيء، [..] = المحدد
+let F=LS.get('p8020-f-v1',DEF_F); MSK.forEach(k=>{ const v=F[k]; F[k]=Array.isArray(v)?v:(v?[v]:null); });
 const saveF=()=>LS.set('p8020-f-v1',F);
 let TAB='sum';
 const VIEW=LS.get('p8020-view-v1',{pdim:'sub',ptop:20,hrow:'sub',hcol:'cen',hn:12,hm:12,hmode:'n',cdim:'sub',cn:15,sdim:'',sval:'',sbk:'week',sint:'',sall:1});
@@ -256,7 +275,10 @@ function cmpPeriod(){ if(F.cmp==='none'||!F.from||!F.to) return null; if(F.cmp==
   if(wholeMonths){ const n=(t.getFullYear()-f.getFullYear())*12+t.getMonth()-f.getMonth()+1; const s=new Date(f.getFullYear(),f.getMonth()-n,1), e=new Date(f.getFullYear(),f.getMonth(),0); return [iso(s),iso(e)]; }
   const n=daysBetween(F.from,F.to)+1; return [addD(F.from,-n),addD(F.from,-1)];
 }
-function dimFilter(r){ return (!F.sec||r.sec===F.sec)&&(!F.cen||r.cen===F.cen)&&(!F.main||r.main===F.main); }
+let FS=null, FSsig='';
+function fsets(){ const sig=JSON.stringify([F.sec,F.cen,F.main,F.sub]); if(sig!==FSsig){ FSsig=sig; FS=MSK.map(k=>F[k]?new Set(F[k]):null); } return FS; }
+function dimFilter(r,skip){ const S=fsets(); for(let i=0;i<4;i++){ const k=MSK[i]; if(k===skip||!S[i]) continue; if(!S[i].has(r[k])) return false; } return true; }
+const oneSec=()=>F.sec&&F.sec.length===1?F.sec[0]:'';
 let CACHE=null;
 function sets(){ const sig=[DATA.at,DATA.recs.length,JSON.stringify(F)].join('|'); if(CACHE&&CACHE.sig===sig) return CACHE;
   const cp=cmpPeriod(); const cur=[], prv=[], dimAll=[];
@@ -529,7 +551,9 @@ let PROJ=null;
 const PAGE_MM={A4:[297,210],A3:[420,297]};
 const LAYOUT={land:{1:[1,1],2:[2,1],3:[3,1],4:[2,2],6:[3,2]},port:{1:[1,1],2:[1,2],3:[1,3],4:[2,2],6:[2,3]}};
 const STMM={1:7,2:5.4,3:4.8,4:4.6,6:3.9};
-function scopeLabel(){ const p=[]; p.push(F.sec?('المراكز التابعة لـ'+shortSec(F.sec)):'كل قطاعات التجمع'); if(F.cen) p.push(F.cen); if(F.main) p.push(F.main); return p.join(' · '); }
+function scopeLabel(){ const p=[]; const L=(k,one,many)=>{ const v=F[k]; if(!v) return; p.push(v.length===1?one(v[0]):many(v.length)); };
+  if(!F.sec) p.push('كل قطاعات التجمع'); else L('sec',v=>'المراكز التابعة لـ'+shortSec(v),n=>`${n} قطاعات`);
+  L('cen',v=>v,n=>`${n} مراكز`); L('main',v=>v,n=>`${n} تصنيفات رئيسية`); L('sub',v=>v,n=>`${n} تصنيفات فرعية`); return p.join(' · '); }
 function igSlide(id,wmm,hmm){ const S=sets(), fsmm=STMM[IG.per]*0.7, W=1000, H=Math.round(W*hmm/wmm), fs=fsmm*W/wmm, top=+IG.top||10;
   const sv=x=>x;
   switch(id){
@@ -548,7 +572,7 @@ function igSlide(id,wmm,hmm){ const S=sets(), fsmm=STMM[IG.per]*0.7, W=1000, H=M
       return {t:SLIDES.vft,d:'التصنيفات الفرعية التي تبلغ معاً '+F.thr+'%',top:1,b:`<table class="mt"><thead><tr><th>#</th><th>التصنيف</th><th class="n">العدد</th><th class="n">النسبة</th><th class="n">التراكمي</th>${S.cp?'<th class="n">التغير</th>':''}</tr></thead><tbody>${R.map((r,i)=>`<tr><td class="n">${i+1}</td><td>${esc(r.name)}</td><td class="n"><b>${fmt(r.n)}</b></td><td class="n">${pct(r.share)}</td><td class="n">${pct(r.cum)}</td>${S.cp?`<td class="n">${chgHTML(chg(r.n,pm.get(r.name)||0,false))}</td>`:''}</tr>`).join('')}</tbody></table>`}; }
   } return {t:'',d:'',b:''}; }
 function igPages(){ const [pw0,ph0]=PAGE_MM[IG.size]||PAGE_MM.A4; const [pw,ph]=IG.orient==='port'?[ph0,pw0]:[pw0,ph0]; const per=+IG.per||4; const [cols,rows]=LAYOUT[IG.orient==='port'?'port':'land'][per];
-  const ids=IG.order.filter(k=>IG.on[k]&&!(k==='psec'&&F.sec)); const pages=[]; for(let i=0;i<ids.length;i+=per) pages.push(ids.slice(i,i+per)); if(!pages.length) pages.push([]);
+  const ids=IG.order.filter(k=>IG.on[k]&&!(k==='psec'&&oneSec())); const pages=[]; for(let i=0;i<ids.length;i+=per) pages.push(ids.slice(i,i+per)); if(!pages.length) pages.push([]);
   const headH=IG.head?26:0, footH=IG.foot?8:0, gap=4, padX=6, padY=4; const cw=(pw-2*padX-(cols-1)*gap)/cols, chh=(ph-headH-footH-2*padY-(rows-1)*gap)/rows; const bodyW=cw-8, bodyH=chh-6-STMM[per]*2.1;
   const sub=IG.sub||`${scopeLabel()} · ${arDate(F.from)} – ${arDate(F.to)}`; const date=IG.date||arDate(iso(new Date()));
   return pages.map((ids,pi)=>`<div class="page" style="width:${pw}mm;height:${ph}mm;--pc:${esc(IG.pc)};--st:${STMM[per]}mm;--h1:${Math.min(8,STMM[per]*1.35)}mm">
@@ -557,7 +581,7 @@ function igPages(){ const [pw0,ph0]=PAGE_MM[IG.size]||PAGE_MM.A4; const [pw,ph]=
    ${IG.foot?`<div class="pf" style="height:${footH}mm"><span>تاريخ الإعداد: ${esc(date)}</span><span>إعداد: ${esc(IG.prep)}${IG.sup?' | إشراف: '+esc(IG.sup):''}</span><span>${pages.length>1?`صفحة ${pi+1} من ${pages.length}`:''}</span></div>`:''}</div>`); }
 function viewIG(){ const seg=(k,opts)=>`<div class="seg">${opts.map(([v,l])=>`<button type="button" data-ig="${k}" data-val="${v}" class="${String(IG[k])===String(v)?'on':''}">${l}</button>`).join('')}</div>`;
   const inp=(k,l,ph)=>`<div class="fld"><label>${l}</label><input class="inp" data-igi="${k}" value="${esc(IG[k])}" placeholder="${esc(ph||'')}"></div>`;
-  const sl=IG.order.map((k,i)=>`<div class="sl"><input type="checkbox" data-igon="${k}"${IG.on[k]?' checked':''}><span>${SLIDES[k]}${k==='psec'&&F.sec?' <small style="color:var(--muted)">(مع كل القطاعات فقط)</small>':''}</span><button class="btn sm" data-igmv="${i}" data-d="-1" ${i?'':'disabled'}>↑</button><button class="btn sm" data-igmv="${i}" data-d="1" ${i<IG.order.length-1?'':'disabled'}>↓</button></div>`).join('');
+  const sl=IG.order.map((k,i)=>`<div class="sl"><input type="checkbox" data-igon="${k}"${IG.on[k]?' checked':''}><span>${SLIDES[k]}${k==='psec'&&oneSec()?' <small style="color:var(--muted)">(مع كل القطاعات فقط)</small>':''}</span><button class="btn sm" data-igmv="${i}" data-d="-1" ${i?'':'disabled'}>↑</button><button class="btn sm" data-igmv="${i}" data-d="1" ${i<IG.order.length-1?'':'disabled'}>↓</button></div>`).join('');
   return `<div class="ig"><div class="card igset"><h2>إعدادات الإنفوجرافيك</h2>
    <div class="fld"><label>عدد الشرائح في الصفحة</label>${seg('per',[[1,'1'],[2,'2'],[3,'3'],[4,'4'],[6,'6']])}</div>
    <div class="fld"><label>اتجاه الصفحة</label>${seg('orient',[['land','أفقي'],['port','عمودي']])}</div>
@@ -575,7 +599,7 @@ function fitPreview(){ const box=$('#pvw'); if(!box) return; const w=box.clientW
 function renderPreview(){ const box=$('#pvw'); if(!box) return; if(!sets().cur.length){ box.innerHTML='<div class="card empty"><b>لا توجد بلاغات في الفترة المحددة</b></div>'; return; } box.innerHTML=igPages().map(p=>`<div class="pgwrap">${p}</div>`).join(''); fillSlides(box); requestAnimationFrame(fitPreview); }
 function fillSlides(root){ const PX=96/25.4; $$('.body[data-sid]',root).forEach(b=>{ const w=b.clientWidth/PX, h=b.clientHeight/PX; const s=igSlide(b.dataset.sid,Math.max(20,w),Math.max(15,h)); b.innerHTML=s.b; }); }
 async function pagePNGs(){ const pages=$$('#pvw .page'); const out=[]; for(const pg of pages){ const tr=pg.style.transform; pg.style.transform='none'; try{ out.push(await htmlToImage.toPng(pg,{pixelRatio:2.5,backgroundColor:'#fff',fontEmbedCSS:FONT_CSS,width:pg.offsetWidth,height:pg.offsetHeight})); } finally{ pg.style.transform=tr; } } return out; }
-const fileBase=()=>`انفوجرافيك-80-20-${(F.sec?shortSec(F.sec):'التجمع').replace(/[\\\/:*?"<>|\s]+/g,'-')}-${F.from}_${F.to}`;
+const fileBase=()=>`انفوجرافيك-80-20-${(oneSec()?shortSec(oneSec()):F.sec?F.sec.length+'-قطاعات':'التجمع').replace(/[\\\/:*?"<>|\s]+/g,'-')}-${F.from}_${F.to}`;
 async function exportPDF(){ busy('جارٍ تجهيز ملف PDF…'); try{ const imgs=await pagePNGs(); const [pw0,ph0]=PAGE_MM[IG.size]; const [pw,ph]=IG.orient==='port'?[ph0,pw0]:[pw0,ph0]; const doc=await PDFLib.PDFDocument.create(); doc.setTitle(IG.title);
   for(const u of imgs){ const png=await doc.embedPng(u); const pg=doc.addPage([pw*2.8346,ph*2.8346]); pg.drawImage(png,{x:0,y:0,width:pw*2.8346,height:ph*2.8346}); }
   const bytes=await doc.save(); busy(); await saveFile(fileBase()+'.pdf',new Blob([bytes],{type:'application/pdf'})); }catch(e){ busy(); dialog({title:'تعذر إنشاء PDF',html:`<p>${esc(e.message||e)}</p><p>جرّب زر «طباعة» ثم اختر «حفظ كـ PDF».</p>`}); } }
@@ -583,14 +607,38 @@ async function exportPNG(){ busy('جارٍ تجهيز الصور…'); try{ cons
 function doPrint(){ const [pw0,ph0]=PAGE_MM[IG.size]; const [pw,ph]=IG.orient==='port'?[ph0,pw0]:[pw0,ph0]; let st=$('#pgsize'); if(!st){ st=document.createElement('style'); st.id='pgsize'; document.head.appendChild(st); } st.textContent=`@page{size:${pw}mm ${ph}mm;margin:0}`;
   const pa=$('#printArea'); pa.innerHTML=$$('#pvw .page').map(p=>{ const c=p.cloneNode(true); c.style.transform=''; return c.outerHTML; }).join(''); setTimeout(()=>{ window.print(); },150); }
 
+/* ================= multi-select filters ================= */
+const MSL={sec:'القطاع',cen:'المركز الصحي',main:'التصنيف الرئيسي',sub:'التصنيف الفرعي'};
+const MSALL={sec:'تجمع مكة المكرمة الصحي (كل القطاعات)',cen:'كل المراكز',main:'كل التصنيفات الرئيسية',sub:'كل التصنيفات الفرعية'};
+function msOptions(k){ // الخيارات المتاحة حسب الفلاتر الأخرى التي قبله
+  const i=MSK.indexOf(k), before=MSK.slice(0,i); const S=fsets();
+  const list=DATA.recs.filter(r=>before.every((kk,j)=>!S[j]||S[j].has(r[kk])));
+  const m=countBy(list,k); return [...m].sort((a,b)=>k==='cen'?a[0].localeCompare(b[0],'ar'):b[1]-a[1]); }
+function msLabel(k){ const v=F[k]; if(!v) return MSALL[k]; if(!v.length) return 'لا شيء محدد'; if(v.length===1) return dname(k,v[0]); return `${fmt(v.length)} محدد`; }
+function msFill(k){ const box=$(`.ms[data-ms="${k}"]`); if(!box) return; const opts=msOptions(k);
+  if(F[k]&&F[k].length){ const have=new Set(opts.map(o=>o[0])); const kept=F[k].filter(v=>have.has(v)); F[k]=kept.length?kept:null; FSsig=''; }
+  box.querySelector('.msb span').textContent=msLabel(k); box.classList.toggle('on',!!F[k]); box._opts=opts; }
+function msOpen(box){ $$('.ms.open').forEach(b=>b!==box&&msClose(b,true)); const k=box.dataset.ms, opts=box._opts||[]; const sel=new Set(F[k]||opts.map(o=>o[0]));
+  box._sel=sel; box.classList.add('open');
+  const p=box.querySelector('.msp'); p.innerHTML=`<input class="inp mss" placeholder="بحث…"><div class="msa"><button type="button" class="btn sm" data-msa="all">تحديد الكل</button><button type="button" class="btn sm" data-msa="none">إلغاء الكل</button><button type="button" class="btn sm" data-msa="inv">عكس التحديد</button></div>
+   <div class="msl">${opts.map(([v,n])=>`<label data-v="${esc(nrm(dname(k,v)))}"><input type="checkbox" value="${esc(v)}"${sel.has(v)?' checked':''}><span>${esc(dname(k,v))}</span><small>${fmt(n)}</small></label>`).join('')||'<div style="padding:10px;color:var(--muted)">لا توجد خيارات</div>'}</div>
+   <div class="msf"><span class="msc"></span><button type="button" class="btn sm pri" data-msok>تطبيق</button><button type="button" class="btn sm" data-mscancel>إلغاء</button></div>`;
+  const cnt=()=>{ p.querySelector('.msc').textContent=`${fmt(sel.size)} من ${fmt(opts.length)}`; }; cnt();
+  p.querySelector('.mss').addEventListener('input',e=>{ const q=nrm(e.target.value); $$('.msl label',p).forEach(l=>{ l.hidden=q&&!l.dataset.v.includes(q); }); });
+  p.onchange=e=>{ const c=e.target; if(c.type!=='checkbox') return; if(c.checked) sel.add(c.value); else sel.delete(c.value); cnt(); };
+  p.onclick=e=>{ const b=e.target.closest('[data-msa],[data-msok],[data-mscancel]'); if(!b) return; e.stopPropagation();
+    if(b.dataset.msa){ const vis=$$('.msl label',p).filter(l=>!l.hidden).map(l=>l.querySelector('input')); vis.forEach(c=>{ const on=b.dataset.msa==='all'?true:b.dataset.msa==='none'?false:!c.checked; c.checked=on; if(on) sel.add(c.value); else sel.delete(c.value); }); cnt(); return; }
+    if(b.dataset.msok!=null) msClose(box,false); else msClose(box,true); };
+  p.style.right=''; if(window.innerWidth>700){ const r=p.getBoundingClientRect(); if(r.left<8) p.style.right=(r.left-8)+'px'; }
+  setTimeout(()=>{ if(window.innerWidth>700) p.querySelector('.mss').focus(); },30); }
+function msClose(box,cancel){ if(!box.classList.contains('open')) return; box.classList.remove('open'); const k=box.dataset.ms, opts=box._opts||[], sel=box._sel; box.querySelector('.msp').innerHTML='';
+  if(cancel||!sel) return; const all=opts.length&&opts.every(o=>sel.has(o[0])); F[k]=all?null:opts.map(o=>o[0]).filter(v=>sel.has(v));
+  if(!all&&!F[k].length) toast('لم تحدد أي '+MSL[k]+'، فلن تظهر بلاغات');
+  FSsig=''; saveF(); CACHE=null; fillFilters(); render(); }
+
 /* ================= shell ================= */
-function fillFilters(){ const recs=DATA.recs; const opt=(v,l,s)=>`<option value="${esc(v)}"${s?' selected':''}>${esc(l)}</option>`;
-  const secs=[...countBy(recs,'sec')].sort((a,b)=>b[1]-a[1]); if(F.sec&&!secs.some(s=>s[0]===F.sec)) F.sec='';
-  $('#fSec').innerHTML=opt('','تجمع مكة المكرمة الصحي (كل القطاعات)',!F.sec)+secs.map(([s,n])=>opt(s,`${shortSec(s)} (${fmt(n)})`,s===F.sec)).join('');
-  const cl=recs.filter(r=>!F.sec||r.sec===F.sec); const cens=[...countBy(cl,'cen')].sort((a,b)=>a[0].localeCompare(b[0],'ar')); if(F.cen&&!cens.some(s=>s[0]===F.cen)) F.cen='';
-  $('#fCen').innerHTML=opt('','كل المراكز',!F.cen)+cens.map(([s,n])=>opt(s,`${s} (${fmt(n)})`,s===F.cen)).join('');
-  const ml=cl.filter(r=>!F.cen||r.cen===F.cen); const mains=[...countBy(ml,'main')].sort((a,b)=>b[1]-a[1]); if(F.main&&!mains.some(s=>s[0]===F.main)) F.main='';
-  $('#fMain').innerHTML=opt('','كل التصنيفات الرئيسية',!F.main)+mains.map(([s,n])=>opt(s,`${s} (${fmt(n)})`,s===F.main)).join('');
+function fillFilters(){
+  MSK.forEach(k=>msFill(k));
   $('#fFrom').value=F.from; $('#fTo').value=F.to; $('#fCmp').value=F.cmp; $('#fThr').value=F.thr; $('#cmpBox').hidden=F.cmp!=='custom'; $('#fCf').value=F.cfrom; $('#fCt').value=F.cto;
   const cp=cmpPeriod(); $('#cmpInfo').textContent=cp?`${arDate(cp[0])} – ${arDate(cp[1])}`:''; $('#fsum').textContent=F.from?`${arDate(F.from)} – ${arDate(F.to)} · ${scopeLabel()}${cp?' · مقارنة':''}`:''; }
 function render(){ const v=$('#view'); $$('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB)); $('#filters').hidden=TAB==='data';
@@ -605,6 +653,9 @@ function preset(p){ const [a,b]=dataRange(); if(!b) return; const L=pd(b); let f
 let FONT_CSS='';
 async function init(){ FONT_CSS=$('#fontEmb').textContent; await openStore(); const d=await kvGet('data'); if(d&&Array.isArray(d.recs)) DATA=d; const pj=await kvGet('proj'); if(pj) PROJ=pj; if(DATA.recs.length&&!F.from) defaultPeriod();
   document.documentElement.style.setProperty('--toph',$('.top').offsetHeight+'px'); if(window.innerWidth>900) $('#filters').open=true; fillFilters(); if(!DATA.recs.length) TAB='data'; render();
+  document.addEventListener('click',e=>{ const mb=e.target.closest('.msb'); if(mb){ const box=mb.closest('.ms'); if(box.classList.contains('open')) msClose(box,false); else msOpen(box); return; }
+    if(!e.target.closest('.ms')) $$('.ms.open').forEach(b=>msClose(b,false)); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') $$('.ms.open').forEach(b=>msClose(b,true)); });
   document.addEventListener('click',async e=>{ const t=e.target.closest('[data-tab],[data-act],[data-pre],[data-ig],[data-igmv]'); if(!t) return;
     if(t.dataset.tab){ TAB=t.dataset.tab; render(); window.scrollTo({top:0}); return; }
     if(t.dataset.pre){ preset(t.dataset.pre); return; }
@@ -623,8 +674,8 @@ async function init(){ FONT_CSS=$('#fontEmb').textContent; await openStore(); co
     if(t.dataset.igon){ IG.on[t.dataset.igon]=t.checked?1:0; saveIG(); render(); return; }
     if(t.dataset.igc){ IG[t.dataset.igc]=t.checked?1:0; saveIG(); render(); return; }
     if(t.dataset.igi){ IG[t.dataset.igi]=t.type==='number'?(+t.value||10):t.value; saveIG(); renderPreview(); return; }
-    const fm={fFrom:'from',fTo:'to',fCmp:'cmp',fSec:'sec',fCen:'cen',fMain:'main',fThr:'thr',fCf:'cfrom',fCt:'cto'}[t.id];
-    if(fm){ F[fm]=fm==='thr'?Math.max(50,Math.min(95,+t.value||80)):t.value; if(fm==='sec'){ F.cen=''; F.main=''; } if(fm==='cen') F.main=''; if(F.from&&F.to&&F.from>F.to) [F.from,F.to]=[F.to,F.from]; saveF(); CACHE=null; fillFilters(); render(); }
+    const fm={fFrom:'from',fTo:'to',fCmp:'cmp',fThr:'thr',fCf:'cfrom',fCt:'cto'}[t.id];
+    if(fm){ F[fm]=fm==='thr'?Math.max(50,Math.min(95,+t.value||80)):t.value; if(F.from&&F.to&&F.from>F.to) [F.from,F.to]=[F.to,F.from]; saveF(); CACHE=null; fillFilters(); render(); }
   });
   $('#fileIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) importFile(f); });
   $('#logoIn').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement('canvas'), s=Math.min(1,400/img.height); c.width=img.width*s; c.height=img.height*s; c.getContext('2d').drawImage(img,0,0,c.width,c.height); IG.logo=c.toDataURL('image/png'); saveIG(); render(); }; img.src=r.result; }; r.readAsDataURL(f); });
